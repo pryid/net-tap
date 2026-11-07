@@ -87,6 +87,12 @@ jobs:
             export NETTAP_SIGNING_STORE_PASSWORD="${STORE_PASSWORD}"
             export NETTAP_SIGNING_KEY_PASSWORD="${KEY_PASSWORD}"
             export NETTAP_SIGNING_KEY_ALIAS="${KEY_ALIAS:-release}"
+            if ! "${JAVA_HOME}/bin/keytool" -list -keystore "${keystore_file}" \
+                -storepass:env NETTAP_SIGNING_STORE_PASSWORD \
+                -alias "${NETTAP_SIGNING_KEY_ALIAS}" > /dev/null 2>&1; then
+              echo "::error::Cannot read the keystore or find its alias. Check the complete KEYSTORE base64, STORE_PASSWORD, and KEY_ALIAS secrets."
+              exit 1
+            fi
             echo "signed=true" >> "${GITHUB_OUTPUT}"
           elif [[ -n "${KEYSTORE}" || -n "${STORE_PASSWORD}" || -n "${KEY_PASSWORD}" || -n "${KEY_ALIAS}" ]]; then
             echo "Configure all of KEYSTORE, STORE_PASSWORD, and KEY_PASSWORD; KEY_ALIAS is optional." >&2
