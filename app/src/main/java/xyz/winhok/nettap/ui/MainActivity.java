@@ -13,8 +13,11 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.graphics.Insets;
 import androidx.core.content.FileProvider;
 import androidx.core.splashscreen.SplashScreen;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
@@ -72,6 +75,17 @@ public final class MainActivity extends AppCompatActivity {
         preferences.applyRealtimeTransport();
         setContentView(R.layout.activity_main);
         mainRoot = findViewById(R.id.main_root);
+        ViewCompat.setOnApplyWindowInsetsListener(mainRoot, (view, insets) -> {
+            int safeAreas = WindowInsetsCompat.Type.systemBars()
+                    | WindowInsetsCompat.Type.displayCutout();
+            Insets safeInsets = insets.getInsets(safeAreas);
+            view.setPadding(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom);
+            // The root has applied these insets for all screens, including the detail view.
+            // Do not let child views apply the same system bar padding a second time.
+            return new WindowInsetsCompat.Builder(insets)
+                    .setInsets(safeAreas, Insets.NONE)
+                    .build();
+        });
         toolbar = findViewById(R.id.toolbar);
         bottomNavigationView = findViewById(R.id.bottom_nav);
         setSupportActionBar(toolbar);

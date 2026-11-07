@@ -5,6 +5,9 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.widget.SearchView;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.appbar.MaterialToolbar;
@@ -68,6 +71,40 @@ public final class MainActivityRobolectricTest {
                 .commit();
         deleteRecursively(RuntimeEnvironment.getApplication().getExternalFilesDir("export"));
         resetUiState();
+    }
+
+    @Test
+    public void systemInsetsKeepAllScreensInsideSafeAreaWithoutAccumulating() {
+        MainActivity activity = launch();
+        android.view.View root = activity.findViewById(R.id.main_root);
+        int safeAreas = WindowInsetsCompat.Type.systemBars()
+                | WindowInsetsCompat.Type.displayCutout();
+        WindowInsetsCompat insets = new WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(3, 30, 5, 20))
+                .setInsets(WindowInsetsCompat.Type.displayCutout(), Insets.of(8, 40, 0, 0))
+                .build();
+
+        WindowInsetsCompat remaining = ViewCompat.dispatchApplyWindowInsets(root, insets);
+        assertEquals(8, root.getPaddingLeft());
+        assertEquals(40, root.getPaddingTop());
+        assertEquals(5, root.getPaddingRight());
+        assertEquals(20, root.getPaddingBottom());
+        assertEquals(Insets.NONE, remaining.getInsets(safeAreas));
+
+        ViewCompat.dispatchApplyWindowInsets(root, insets);
+        assertEquals(40, root.getPaddingTop());
+        activity.showDetail("request-1");
+        activity.getSupportFragmentManager().executePendingTransactions();
+        assertEquals(40, root.getPaddingTop());
+
+        WindowInsetsCompat changed = new WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 18, 0, 12))
+                .build();
+        ViewCompat.dispatchApplyWindowInsets(root, changed);
+        assertEquals(0, root.getPaddingLeft());
+        assertEquals(18, root.getPaddingTop());
+        assertEquals(0, root.getPaddingRight());
+        assertEquals(12, root.getPaddingBottom());
     }
 
     @Test

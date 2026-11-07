@@ -23,6 +23,7 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static androidx.test.espresso.matcher.ViewMatchers.withHint;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -45,6 +46,13 @@ public final class MainActivitySmokeTest {
             DetailHostFragment.setSelectedEventId(null);
             NetTapUiState.startRealtimeServer(RuntimeCaptureConfig.DEFAULT_REALTIME_PORT);
         });
+    }
+
+    @Test
+    public void overflowMenuIsClickable() {
+        onView(withContentDescription(androidx.appcompat.R.string.abc_action_menu_overflow_description))
+                .perform(click());
+        onView(withText(R.string.action_sort)).check(matches(isDisplayed()));
     }
 
     @Test
