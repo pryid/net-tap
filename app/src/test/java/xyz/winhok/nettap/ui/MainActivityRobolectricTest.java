@@ -37,6 +37,7 @@ import xyz.winhok.nettap.ui.data.CaptureBodySnapshot;
 import xyz.winhok.nettap.ui.data.CaptureUiEvent;
 import xyz.winhok.nettap.ui.fragment.DetailHostFragment;
 import xyz.winhok.nettap.ui.fragment.TlsKeylogFragment;
+import xyz.winhok.nettap.ui.fragment.UrlFilterFragment;
 
 import io.github.rosemoe.sora.widget.CodeEditor;
 
@@ -124,6 +125,24 @@ public final class MainActivityRobolectricTest {
         assertNotNull(findButtonByText(activity, R.string.action_freeze));
         assertTrue(toolbarHasAction(activity, R.id.action_clear));
         assertTrue(toolbarHasAction(activity, R.id.action_sort));
+    }
+
+    @Test
+    public void subpageShowsItsTitleAndUpReturnsToParent() {
+        MainActivity activity = launch();
+        selectBottomTab(activity, R.id.tab_config);
+        activity.showPage("url-filter", new UrlFilterFragment());
+        activity.getSupportFragmentManager().executePendingTransactions();
+
+        assertEquals(activity.getString(R.string.nav_url_filter), activity.getTitle());
+        assertTrue((activity.getSupportActionBar().getDisplayOptions()
+                & androidx.appcompat.app.ActionBar.DISPLAY_HOME_AS_UP) != 0);
+
+        activity.onSupportNavigateUp();
+        activity.getSupportFragmentManager().executePendingTransactions();
+        assertEquals(activity.getString(R.string.nav_config), activity.getTitle());
+        assertEquals(0, activity.getSupportActionBar().getDisplayOptions()
+                & androidx.appcompat.app.ActionBar.DISPLAY_HOME_AS_UP);
     }
 
     @Test

@@ -38,6 +38,7 @@ import xyz.winhok.nettap.ui.data.HarExportResult;
 import xyz.winhok.nettap.ui.data.HarExportRequest;
 import xyz.winhok.nettap.ui.data.HarExportWorker;
 import xyz.winhok.nettap.ui.data.RawJsonFileExporter;
+import xyz.winhok.nettap.ui.fragment.AboutFragment;
 import xyz.winhok.nettap.ui.fragment.BodyViewerFragment;
 import xyz.winhok.nettap.ui.fragment.CaptureDetailFragment;
 import xyz.winhok.nettap.ui.fragment.CaptureListFragment;
@@ -45,6 +46,8 @@ import xyz.winhok.nettap.ui.fragment.ConfigFragment;
 import xyz.winhok.nettap.ui.fragment.DetailHostFragment;
 import xyz.winhok.nettap.ui.fragment.HookSettingsFragment;
 import xyz.winhok.nettap.ui.fragment.SettingsFragment;
+import xyz.winhok.nettap.ui.fragment.TlsKeylogFragment;
+import xyz.winhok.nettap.ui.fragment.UrlFilterFragment;
 
 public final class MainActivity extends AppCompatActivity {
     private static final String TAG = "NetTapMain";
@@ -97,6 +100,8 @@ public final class MainActivity extends AppCompatActivity {
             if (getSupportFragmentManager().findFragmentById(R.id.nav_host) == null) {
                 switchTab(R.id.tab_captures);
             }
+        } else {
+            syncChromeForCurrentFragment();
         }
     }
 
@@ -264,6 +269,31 @@ public final class MainActivity extends AppCompatActivity {
         Fragment current = getSupportFragmentManager().findFragmentById(R.id.nav_host);
         boolean immersive = current instanceof CaptureDetailFragment || current instanceof BodyViewerFragment;
         setMainChromeVisible(!immersive);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(!immersive
+                    && getSupportFragmentManager().getBackStackEntryCount() > 0);
+        }
+        if (current instanceof UrlFilterFragment) {
+            setTitle(R.string.nav_url_filter);
+        } else if (current instanceof TlsKeylogFragment) {
+            setTitle(R.string.nav_tls_keylog);
+        } else if (current instanceof AboutFragment) {
+            setTitle(R.string.nav_about);
+        } else if (current instanceof CaptureListFragment) {
+            setTitle(R.string.nav_capture);
+        } else if (current instanceof HookSettingsFragment) {
+            setTitle(R.string.nav_hooks);
+        } else if (current instanceof ConfigFragment) {
+            setTitle(R.string.nav_config);
+        } else if (current instanceof SettingsFragment) {
+            setTitle(R.string.nav_settings);
+        }
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        getOnBackPressedDispatcher().onBackPressed();
+        return true;
     }
 
     private void setMainChromeVisible(boolean visible) {
