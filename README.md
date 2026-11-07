@@ -67,7 +67,22 @@ Any layer that doesn't apply is logged and skipped; the others install independe
 ./gradlew :app:assembleDebug
 ```
 
-Requires JDK 17+ and a modern Android SDK (compileSdk set in `app/build.gradle`). The APK lands in `app/build/outputs/apk/debug/`.
+The Gradle daemon is configured for JDK 21 and the project uses Android SDK Platform 36.1 and Build Tools 36.0.0. The APK lands in `app/build/outputs/apk/debug/`.
+
+### GitHub Actions release builds
+
+To build an installable release APK in the fork, configure these repository secrets under **Settings → Secrets and variables → Actions**:
+
+* `KEYSTORE`: the release keystore encoded as base64, for example `base64 -w 0 net-tap-release.jks` on Linux.
+* `STORE_PASSWORD`: the keystore password.
+* `KEY_PASSWORD`: the signing key password.
+* `KEY_ALIAS` (optional): the signing key alias; defaults to `release`.
+
+Use a keystore you control, keep a secure backup, and reuse the same key for later releases. Android requires the same signing certificate to update an installed app. For a new key, `keytool -genkeypair -keystore net-tap-release.jks -alias release -keyalg RSA -keysize 3072 -validity 10000` prompts for the passwords and certificate details. Do not commit the keystore or its passwords.
+
+After the workflow is on the default branch, open **Actions → Android Package → Run workflow**. Choose the branch to build, leave `publish_release` unchecked, and download the `net-tap-release` artifact from the completed run. When signing secrets are configured, it contains `net-tap-release.apk`; without them it contains `net-tap-release-unsigned.apk`, which must be signed before installation. Pull requests from forks do not receive repository secrets and produce an unsigned release artifact.
+
+Pushing a `v*` tag creates or updates the matching GitHub Release with the verified signed release and debug APKs. Alternatively, run the workflow manually on an existing `v*` tag and check `publish_release`. Publication fails if signing secrets are missing, incomplete, or the APK signature cannot be verified. The tag does not automatically change the app's `versionCode` or `versionName`; update those in `app/build.gradle` when preparing a version.
 
 ## Install
 
@@ -77,7 +92,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 Enable the module in LSPosed and add the target app(s) to its scope. The module declares `xposed_scope = *`, so you choose the scope from LSPosed.
 
-Signed release builds need a keystore — use `generate-keystore-config.sh` with env vars `KEYSTORE` (base64), `STORE_PASSWORD`, `KEY_PASSWORD`, then `./gradlew :app:assembleRelease`.
+For a local signed release, set `NETTAP_SIGNING_STORE_FILE` to the absolute keystore path and set `NETTAP_SIGNING_STORE_PASSWORD`, `NETTAP_SIGNING_KEY_ALIAS`, and `NETTAP_SIGNING_KEY_PASSWORD`, then run `./gradlew :app:assembleRelease`. The existing `keystore.properties` configuration is also supported. With neither configuration, the release APK is unsigned.
 
 ## Test
 

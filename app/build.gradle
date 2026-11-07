@@ -2,10 +2,21 @@ apply plugin: 'com.android.application'
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
 def keystoreProperties = new Properties()
-def hasReleaseSigning = keystorePropertiesFile.exists()
-if (hasReleaseSigning) {
+def signingEnv = [
+        storeFile: System.getenv('NETTAP_SIGNING_STORE_FILE'),
+        storePassword: System.getenv('NETTAP_SIGNING_STORE_PASSWORD'),
+        keyAlias: System.getenv('NETTAP_SIGNING_KEY_ALIAS'),
+        keyPassword: System.getenv('NETTAP_SIGNING_KEY_PASSWORD')
+]
+def hasSigningEnv = signingEnv.values().any { it != null && !it.isEmpty() }
+if (hasSigningEnv && signingEnv.values().any { it == null || it.isEmpty() }) {
+    throw new GradleException('All NETTAP_SIGNING_* environment variables are required for release signing')
+}
+if (!hasSigningEnv && keystorePropertiesFile.exists()) {
     keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
 }
+def hasReleaseSigning = hasSigningEnv || keystorePropertiesFile.exists()
+def signingValues = hasSigningEnv ? signingEnv : keystoreProperties
 
 android {
     namespace = "xyz.winhok.nettap"
@@ -31,10 +42,10 @@ android {
     signingConfigs {
         release {
             if (hasReleaseSigning) {
-                storeFile = file(keystoreProperties['storeFile'])
-                storePassword = keystoreProperties['storePassword']
-                keyAlias = keystoreProperties['keyAlias']
-                keyPassword = keystoreProperties['keyPassword']
+                storeFile = file(signingValues['storeFile'])
+                storePassword = signingValues['storePassword']
+                keyAlias = signingValues['keyAlias']
+                keyPassword = signingValues['keyPassword']
             }
         }
     }

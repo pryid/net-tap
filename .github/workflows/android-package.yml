@@ -2,21 +2,25 @@ name: Android Package
 
 on:
   push:
-    branches:
-      - master
-      - main
-    tags:
-      - "v*"
+    branches: [master, main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish the selected v* tag as a GitHub Release
+        type: boolean
+        default: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   package:
     name: Build APKs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    outputs:
+      signed: ${{ steps.build.outputs.signed }}
 
     steps:
       - name: Checkout
@@ -25,8 +29,8 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
-          distribution: zulu
-          java-version: "17"
+          distribution: temurin
+          java-version: "21"
           cache: gradle
 
       - name: Set up Android SDK tools
@@ -34,54 +38,86 @@ jobs:
           sdk_root="${HOME}/android-sdk"
           tools_zip="${RUNNER_TEMP}/android-commandline-tools.zip"
           tools_dir="${RUNNER_TEMP}/android-commandline-tools"
-
           mkdir -p "${sdk_root}/cmdline-tools"
           curl -fsSL \
-            "https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip" \
+            "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip" \
             -o "${tools_zip}"
+          echo "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  ${tools_zip}" | sha256sum -c -
           unzip -q "${tools_zip}" -d "${tools_dir}"
           mv "${tools_dir}/cmdline-tools" "${sdk_root}/cmdline-tools/latest"
-
           {
             echo "ANDROID_HOME=${sdk_root}"
             echo "ANDROID_SDK_ROOT=${sdk_root}"
           } >> "${GITHUB_ENV}"
-
-          {
-            echo "${sdk_root}/cmdline-tools/latest/bin"
-            echo "${sdk_root}/platform-tools"
-          } >> "${GITHUB_PATH}"
+          echo "${sdk_root}/cmdline-tools/latest/bin" >> "${GITHUB_PATH}"
 
       - name: Install Android SDK packages
         run: |
-          yes | sdkmanager --licenses
+          # yes may exit with SIGPIPE when sdkmanager has accepted the licenses.
+          set +o pipefail
+          yes | sdkmanager --licenses > /dev/null
+          set -o pipefail
           sdkmanager --install "platforms;android-36.1" "build-tools;36.0.0" "platform-tools"
 
-      - name: Configure release signing
+      - name: Build and optionally sign APKs
+        id: build
         env:
           KEYSTORE: ${{ secrets.KEYSTORE }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          PUBLISH_RELEASE: ${{ inputs.publish_release }}
         run: |
-          if [[ -n "${KEYSTORE:-}" && -n "${STORE_PASSWORD:-}" && -n "${KEY_PASSWORD:-}" ]]; then
-            bash ./generate-keystore-config.sh
-          else
-            echo "Release signing secrets are not configured; release APK will be unsigned."
+          set -eu
+          publish="false"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/v* ]] \
+              || [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${PUBLISH_RELEASE}" == "true" ]]; then
+            publish="true"
+          fi
+          if [[ "${publish}" == "true" && "${GITHUB_REF}" != refs/tags/v* ]]; then
+            echo "Select a v* tag when requesting publication." >&2
+            exit 1
           fi
 
-      - name: Build
-        run: ./gradlew lintRelease assembleDebug assembleRelease --no-daemon --stacktrace
+          if [[ -n "${KEYSTORE}" && -n "${STORE_PASSWORD}" && -n "${KEY_PASSWORD}" ]]; then
+            umask 077
+            keystore_file="${RUNNER_TEMP}/net-tap-release.keystore"
+            printf '%s' "${KEYSTORE}" | base64 --decode > "${keystore_file}"
+            export NETTAP_SIGNING_STORE_FILE="${keystore_file}"
+            export NETTAP_SIGNING_STORE_PASSWORD="${STORE_PASSWORD}"
+            export NETTAP_SIGNING_KEY_PASSWORD="${KEY_PASSWORD}"
+            export NETTAP_SIGNING_KEY_ALIAS="${KEY_ALIAS:-release}"
+            echo "signed=true" >> "${GITHUB_OUTPUT}"
+          elif [[ -n "${KEYSTORE}" || -n "${STORE_PASSWORD}" || -n "${KEY_PASSWORD}" || -n "${KEY_ALIAS}" ]]; then
+            echo "Configure all of KEYSTORE, STORE_PASSWORD, and KEY_PASSWORD; KEY_ALIAS is optional." >&2
+            exit 1
+          elif [[ "${publish}" == "true" ]]; then
+            echo "Publishing requires KEYSTORE, STORE_PASSWORD, and KEY_PASSWORD secrets." >&2
+            exit 1
+          else
+            echo "No signing secrets configured; release APK will be unsigned."
+            echo "signed=false" >> "${GITHUB_OUTPUT}"
+          fi
+          unset KEYSTORE STORE_PASSWORD KEY_PASSWORD KEY_ALIAS
+          ./gradlew :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
 
-      - name: Collect APKs
+      - name: Collect and verify APKs
+        env:
+          SIGNED: ${{ steps.build.outputs.signed }}
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk dist/net-tap-debug.apk
-          release_apk="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)"
-          if "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose "${release_apk}"; then
-            cp "${release_apk}" dist/net-tap-release.apk
+          shopt -s nullglob
+          release_apks=(app/build/outputs/apk/release/*.apk)
+          if [[ "${#release_apks[@]}" -ne 1 ]]; then
+            echo "Expected one release APK, found ${#release_apks[@]}." >&2
+            exit 1
+          fi
+          if [[ "${SIGNED}" == "true" ]]; then
+            "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose "${release_apks[0]}"
+            cp "${release_apks[0]}" dist/net-tap-release.apk
           else
-            cp "${release_apk}" dist/net-tap-release-unsigned.apk
-            echo "Release signing secrets are not configured; uploaded release APK is unsigned."
+            cp "${release_apks[0]}" dist/net-tap-release-unsigned.apk
           fi
 
       - name: Upload debug APK
@@ -89,30 +125,49 @@ jobs:
         with:
           name: net-tap-debug
           path: dist/net-tap-debug.apk
+          if-no-files-found: error
 
       - name: Upload release APK
-        if: hashFiles('dist/net-tap-release.apk') != ''
         uses: actions/upload-artifact@v7
         with:
           name: net-tap-release
-          path: dist/net-tap-release.apk
+          path: dist/net-tap-release*.apk
+          if-no-files-found: error
 
-      - name: Upload unsigned release APK
-        if: hashFiles('dist/net-tap-release-unsigned.apk') != ''
-        uses: actions/upload-artifact@v7
+  publish:
+    name: Publish GitHub Release
+    needs: package
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed release APK
+        uses: actions/download-artifact@v8
         with:
-          name: net-tap-release-unsigned
-          path: dist/net-tap-release-unsigned.apk
+          name: net-tap-release
+          path: dist
 
-      - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Download debug APK
+        uses: actions/download-artifact@v8
+        with:
+          name: net-tap-debug
+          path: dist
+
+      - name: Create or update release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SIGNED: ${{ needs.package.outputs.signed }}
         run: |
-          if [[ ! -f dist/net-tap-release.apk ]]; then
-            echo "Refusing to publish a GitHub Release without a signed release APK." >&2
-            echo "Configure KEYSTORE, STORE_PASSWORD, and KEY_PASSWORD repository secrets." >&2
+          if [[ "${SIGNED}" != "true" || ! -f dist/net-tap-release.apk ]]; then
+            echo "Refusing to publish without a verified signed APK." >&2
             exit 1
           fi
-          gh release upload "${GITHUB_REF_NAME}" dist/net-tap-debug.apk dist/net-tap-release.apk --clobber \
-            || gh release create "${GITHUB_REF_NAME}" dist/net-tap-debug.apk dist/net-tap-release.apk --generate-notes
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" dist/net-tap-debug.apk dist/net-tap-release.apk --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/net-tap-debug.apk dist/net-tap-release.apk --generate-notes
+          fi
