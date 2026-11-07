@@ -77,6 +77,7 @@ To build an installable release APK in the fork, configure these repository secr
 * `STORE_PASSWORD`: the keystore password.
 * `KEY_PASSWORD`: the signing key password.
 * `KEY_ALIAS` (optional): the signing key alias; defaults to `release`.
+* `KEYSTORE_SHA256` (optional): the SHA-256 checksum of the original keystore file. When set, the workflow checks the decoded `KEYSTORE` against it without printing the checksum or keystore. On Linux, obtain the checksum with `sha256sum net-tap-release.jks` and use only the first 64 hexadecimal characters.
 
 Use a keystore you control, keep a secure backup, and reuse the same key for later releases. Android requires the same signing certificate to update an installed app. For a new key, `keytool -genkeypair -keystore net-tap-release.jks -alias release -keyalg RSA -keysize 3072 -validity 10000` prompts for the passwords and certificate details. Do not commit the keystore or its passwords.
 
