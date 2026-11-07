@@ -2,6 +2,8 @@ package xyz.winhok.nettap.ui;
 
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.appcompat.widget.SearchView;
@@ -36,6 +38,8 @@ import xyz.winhok.nettap.RuntimeCaptureConfig;
 import xyz.winhok.nettap.ui.data.CaptureBodySnapshot;
 import xyz.winhok.nettap.ui.data.CaptureUiEvent;
 import xyz.winhok.nettap.ui.fragment.DetailHostFragment;
+import xyz.winhok.nettap.ui.fragment.DetailRequestFragment;
+import xyz.winhok.nettap.ui.fragment.DetailResponseFragment;
 import xyz.winhok.nettap.ui.fragment.TlsKeylogFragment;
 import xyz.winhok.nettap.ui.fragment.UrlFilterFragment;
 
@@ -260,6 +264,41 @@ public final class MainActivityRobolectricTest {
         String har = readNewHar(activity, 0);
         assertTrue(har.contains("https://api.example.com/v1/users"));
         assertTrue(har.contains("https://static.example.com/logo.png"));
+    }
+
+    @Test
+    public void requestAndResponseDetailsScrollWhenContentExceedsScreen() {
+        NetTapUiState.store().addFromRealtime(event("request-1", "https://api.example.com/v1/users?active=true", 201));
+        MainActivity activity = launch();
+        activity.showDetail("request-1");
+        activity.getSupportFragmentManager().executePendingTransactions();
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+        TabLayout tabs = findView(activity.getWindow().getDecorView(), TabLayout.class);
+
+        for (int index = 1; index <= 2; index++) {
+            tabs.getTabAt(index).select();
+            activity.getSupportFragmentManager().executePendingTransactions();
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            androidx.fragment.app.Fragment detail = activity.getSupportFragmentManager()
+                    .findFragmentById(R.id.nav_host);
+            detail.getChildFragmentManager().executePendingTransactions();
+            androidx.fragment.app.Fragment page = null;
+            for (androidx.fragment.app.Fragment child : detail.getChildFragmentManager().getFragments()) {
+                if ((index == 1 && child instanceof DetailRequestFragment)
+                        || (index == 2 && child instanceof DetailResponseFragment)) {
+                    page = child;
+                    break;
+                }
+            }
+            assertNotNull(page);
+            assertTrue(page.getView() instanceof ScrollView);
+            ScrollView scroll = (ScrollView) page.getView();
+            assertNotNull(findView(scroll, HorizontalScrollView.class));
+            scroll.measure(android.view.View.MeasureSpec.makeMeasureSpec(320, android.view.View.MeasureSpec.EXACTLY),
+                    android.view.View.MeasureSpec.makeMeasureSpec(100, android.view.View.MeasureSpec.EXACTLY));
+            scroll.layout(0, 0, 320, 100);
+            assertTrue(scroll.canScrollVertically(1));
+        }
     }
 
     @Test

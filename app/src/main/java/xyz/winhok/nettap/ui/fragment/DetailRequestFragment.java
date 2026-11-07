@@ -4,7 +4,9 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -31,6 +33,9 @@ public final class DetailRequestFragment extends Fragment {
         LinearLayout root = new LinearLayout(requireContext());
         root.setOrientation(LinearLayout.VERTICAL);
         Dimens.setPaddingDp(root, 12, 12);
+        ScrollView scroll = new ScrollView(requireContext());
+        scroll.setFillViewport(true);
+        scroll.addView(root);
         CaptureUiEvent event = DetailGeneralFragment.findEvent();
         if (event == null) {
             TextView text = new TextView(requireContext());
@@ -66,6 +71,7 @@ public final class DetailRequestFragment extends Fragment {
             SpacedRecyclerView queryList = new SpacedRecyclerView(requireContext());
             queryList.setLayoutManager(new LinearLayoutManager(requireContext()));
             queryList.setAdapter(queryParams);
+            queryList.setNestedScrollingEnabled(false);
             root.addView(queryList, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
@@ -80,10 +86,10 @@ public final class DetailRequestFragment extends Fragment {
         SpacedRecyclerView headerList = new SpacedRecyclerView(requireContext());
         headerList.setLayoutManager(new LinearLayoutManager(requireContext()));
         headerList.setAdapter(headers);
+        headerList.setNestedScrollingEnabled(false);
         root.addView(headerList, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+                LinearLayout.LayoutParams.WRAP_CONTENT
         ));
         TextView bodyTitle = new TextView(requireContext());
         bodyTitle.setText(R.string.detail_body);
@@ -91,7 +97,9 @@ public final class DetailRequestFragment extends Fragment {
         root.addView(bodyTitle);
         JsonHighlightView body = new JsonHighlightView(requireContext());
         body.setJsonText(event.getRequestBody().getText(), query);
-        root.addView(body);
-        return root;
+        HorizontalScrollView bodyScroll = new HorizontalScrollView(requireContext());
+        bodyScroll.addView(body);
+        root.addView(bodyScroll);
+        return scroll;
     }
 }

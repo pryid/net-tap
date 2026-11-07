@@ -4,7 +4,9 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -32,6 +34,9 @@ public final class DetailResponseFragment extends Fragment {
         LinearLayout root = new LinearLayout(requireContext());
         root.setOrientation(LinearLayout.VERTICAL);
         Dimens.setPaddingDp(root, 12, 12);
+        ScrollView scroll = new ScrollView(requireContext());
+        scroll.setFillViewport(true);
+        scroll.addView(root);
         LinearLayout controls = new LinearLayout(requireContext());
         controls.setOrientation(LinearLayout.HORIZONTAL);
         root.addView(controls);
@@ -41,7 +46,7 @@ public final class DetailResponseFragment extends Fragment {
             text.setText(R.string.empty_response_selected);
             Dimens.setPaddingDp(text, 12, 8);
             root.addView(text);
-            return root;
+            return scroll;
         }
         String query = NetTapUiState.getDetailQuery();
         MaterialButton openBody = new MaterialButton(requireContext());
@@ -74,10 +79,10 @@ public final class DetailResponseFragment extends Fragment {
         SpacedRecyclerView headerList = new SpacedRecyclerView(requireContext());
         headerList.setLayoutManager(new LinearLayoutManager(requireContext()));
         headerList.setAdapter(headers);
+        headerList.setNestedScrollingEnabled(false);
         root.addView(headerList, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+                LinearLayout.LayoutParams.WRAP_CONTENT
         ));
         TextView bodyTitle = new TextView(requireContext());
         bodyTitle.setText(R.string.detail_body);
@@ -98,8 +103,10 @@ public final class DetailResponseFragment extends Fragment {
             }
             JsonHighlightView body = new JsonHighlightView(requireContext());
             body.setJsonText(bodyState.getText(), query);
-            root.addView(body);
+            HorizontalScrollView bodyScroll = new HorizontalScrollView(requireContext());
+            bodyScroll.addView(body);
+            root.addView(bodyScroll);
         }
-        return root;
+        return scroll;
     }
 }
