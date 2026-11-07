@@ -38,6 +38,7 @@ import xyz.winhok.nettap.RuntimeCaptureConfig;
 import xyz.winhok.nettap.ui.data.CaptureBodySnapshot;
 import xyz.winhok.nettap.ui.data.CaptureUiEvent;
 import xyz.winhok.nettap.ui.fragment.DetailHostFragment;
+import xyz.winhok.nettap.ui.fragment.CaptureSequenceFragment;
 import xyz.winhok.nettap.ui.fragment.DetailRequestFragment;
 import xyz.winhok.nettap.ui.fragment.DetailResponseFragment;
 import xyz.winhok.nettap.ui.fragment.TlsKeylogFragment;
@@ -98,7 +99,7 @@ public final class MainActivityRobolectricTest {
 
         ViewCompat.dispatchApplyWindowInsets(root, insets);
         assertEquals(40, root.getPaddingTop());
-        activity.showDetail("request-1");
+        activity.showDetail(-1L);
         activity.getSupportFragmentManager().executePendingTransactions();
         assertEquals(40, root.getPaddingTop());
 
@@ -270,7 +271,7 @@ public final class MainActivityRobolectricTest {
     public void requestAndResponseDetailsScrollWhenContentExceedsScreen() {
         NetTapUiState.store().addFromRealtime(event("request-1", "https://api.example.com/v1/users?active=true", 201));
         MainActivity activity = launch();
-        activity.showDetail("request-1");
+        activity.showDetail(NetTapUiState.store().sequenceOldestFirst().get(0).getSessionId());
         activity.getSupportFragmentManager().executePendingTransactions();
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
         TabLayout tabs = findView(activity.getWindow().getDecorView(), TabLayout.class);
@@ -315,7 +316,7 @@ public final class MainActivityRobolectricTest {
         ));
         MainActivity activity = launch();
 
-        activity.showDetail("request-1");
+        activity.showDetail(NetTapUiState.store().sequenceOldestFirst().get(0).getSessionId());
         activity.getSupportFragmentManager().executePendingTransactions();
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
         TabLayout tabs = findView(activity.getWindow().getDecorView(), TabLayout.class);
@@ -370,7 +371,7 @@ public final class MainActivityRobolectricTest {
         ));
         MainActivity activity = launch();
 
-        activity.showDetail("request-1");
+        activity.showDetail(NetTapUiState.store().sequenceOldestFirst().get(0).getSessionId());
         activity.getSupportFragmentManager().executePendingTransactions();
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
 
@@ -448,6 +449,41 @@ public final class MainActivityRobolectricTest {
         assertNotNull(tabs);
         assertEquals("Sequence", String.valueOf(tabs.getTabAt(0).getText()));
         assertEquals("Domains", String.valueOf(tabs.getTabAt(1).getText()));
+    }
+
+    @Test
+    public void duplicateProducerIdsHaveDistinctRowsReadStateAndDetails() {
+        CaptureUiEvent first = event("same", "https://first.example/one", 200);
+        CaptureUiEvent second = event("same", "https://second.example/two", 201);
+        NetTapUiState.store().addFromRealtime(first);
+        MainActivity activity = launch();
+        RecyclerView list = findRecyclerViewWithAdapter(activity, "CaptureSequenceAdapter");
+        assertNotNull(list);
+        list.measure(android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),
+                android.view.View.MeasureSpec.makeMeasureSpec(1200, android.view.View.MeasureSpec.EXACTLY));
+        list.layout(0, 0, 1080, 1200);
+        NetTapUiState.store().addFromRealtime(second);
+        androidx.fragment.app.Fragment capture = activity.getSupportFragmentManager()
+                .findFragmentById(R.id.nav_host);
+        for (androidx.fragment.app.Fragment child : capture.getChildFragmentManager().getFragments()) {
+            if (child instanceof CaptureSequenceFragment) {
+                ((CaptureSequenceFragment) child).refresh();
+            }
+        }
+        list.measure(android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),
+                android.view.View.MeasureSpec.makeMeasureSpec(1200, android.view.View.MeasureSpec.EXACTLY));
+        list.layout(0, 0, 1080, 1200);
+        assertEquals(2, list.getAdapter().getItemCount());
+        assertEquals(second.getSessionId(), list.getAdapter().getItemId(0));
+        assertEquals(first.getSessionId(), list.getAdapter().getItemId(1));
+        assertFalse(list.getAdapter().getItemId(0) == list.getAdapter().getItemId(1));
+
+        clickAdapterRow(list, 0);
+        activity.getSupportFragmentManager().executePendingTransactions();
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+        assertNotNull(findTextViewContaining(activity, "https://second.example/two"));
+        assertTrue(NetTapUiState.store().isRead(second.getSessionId()));
+        assertFalse(NetTapUiState.store().isRead(first.getSessionId()));
     }
 
     @Test

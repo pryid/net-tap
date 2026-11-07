@@ -90,7 +90,7 @@ public final class CaptureSequenceAdapter extends RecyclerView.Adapter<CaptureSe
         if (position < 0 || position >= events.size()) {
             return RecyclerView.NO_ID;
         }
-        return stableIdFor(events.get(position).getId());
+        return events.get(position).getSessionId();
     }
 
     static final class Holder extends RecyclerView.ViewHolder {
@@ -112,15 +112,6 @@ public final class CaptureSequenceAdapter extends RecyclerView.Adapter<CaptureSe
         String previous = previousQuery == null ? "" : previousQuery;
         String next = nextQuery == null ? "" : nextQuery;
         return itemCount > 0 && !previous.equals(next);
-    }
-
-    static long stableIdFor(String eventId) {
-        String value = eventId == null ? "" : eventId;
-        long hash = 1125899906842597L;
-        for (int i = 0; i < value.length(); i++) {
-            hash = 31L * hash + value.charAt(i);
-        }
-        return hash == RecyclerView.NO_ID ? 0L : hash;
     }
 
     public interface Callbacks {

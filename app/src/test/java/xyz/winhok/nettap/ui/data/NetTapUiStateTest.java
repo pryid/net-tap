@@ -63,14 +63,20 @@ public final class NetTapUiStateTest {
 
     @Test
     public void configureStorePreservesReadAndFrozenState() {
-        NetTapUiState.store().addFromRealtime(event("old", "2026-05-14T00:00:00.000Z"));
-        NetTapUiState.store().markRead("old");
+        CaptureUiEvent old = event("old", "2026-05-14T00:00:00.000Z");
+        CaptureUiEvent duplicateId = event("old", "2026-05-14T00:00:01.000Z");
+        NetTapUiState.store().addFromRealtime(old);
+        NetTapUiState.store().addFromRealtime(duplicateId);
+        NetTapUiState.store().markRead(old.getSessionId());
         NetTapUiState.store().freeze();
 
         NetTapUiState.configureStore(20, 10);
 
         assertEquals(CaptureSessionStore.State.FROZEN, NetTapUiState.store().getState());
-        assertEquals(true, NetTapUiState.store().isRead("old"));
+        assertEquals(true, NetTapUiState.store().isRead(old.getSessionId()));
+        assertEquals(false, NetTapUiState.store().isRead(duplicateId.getSessionId()));
+        assertEquals(duplicateId.getSessionId(),
+                NetTapUiState.store().sequenceOldestFirst().get(1).getSessionId());
     }
 
     @Test

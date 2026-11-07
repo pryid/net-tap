@@ -39,8 +39,8 @@ public final class NetTapUiState {
         );
         for (CaptureUiEvent event : previous.sequenceOldestFirst()) {
             next.addFromRealtime(event);
-            if (previous.isRead(event.getId())) {
-                next.markRead(event.getId());
+            if (previous.isRead(event.getSessionId())) {
+                next.markRead(event.getSessionId());
             }
         }
         if (previousState == CaptureSessionStore.State.FROZEN) {

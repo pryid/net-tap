@@ -10,6 +10,19 @@ import static org.junit.Assert.assertTrue;
 
 public final class CaptureSessionStoreTest {
     @Test
+    public void repeatedEventObjectGetsDistinctSessionIdentity() {
+        CaptureSessionStore store = new CaptureSessionStore(10, 1024 * 1024);
+        CaptureUiEvent event = event("same", "https://example.com", 200);
+        store.addFromRealtime(event);
+        store.addFromRealtime(event);
+        List<CaptureUiEvent> entries = store.sequenceOldestFirst();
+        assertEquals(2, entries.size());
+        assertFalse(entries.get(0).getSessionId() == entries.get(1).getSessionId());
+        store.markRead(entries.get(0).getSessionId());
+        assertFalse(store.isRead(entries.get(1).getSessionId()));
+    }
+
+    @Test
     public void freezeDropsNewEventsAndResumeAcceptsOnlyFutureEvents() {
         CaptureSessionStore store = new CaptureSessionStore(10, 1024 * 1024);
         CaptureUiEvent first = event("1", "https://a.example/one", 200);
@@ -69,12 +82,12 @@ public final class CaptureSessionStoreTest {
         CaptureSessionStore store = new CaptureSessionStore(10, oneEventBudget);
 
         store.addFromRealtime(oldEvent);
-        store.markRead("old");
+        store.markRead(oldEvent.getSessionId());
         store.addFromRealtime(newEvent);
 
         assertEquals(1, store.sequenceOldestFirst().size());
         assertEquals("new", store.sequenceOldestFirst().get(0).getId());
-        assertFalse(store.isRead("old"));
+        assertFalse(store.isRead(oldEvent.getSessionId()));
         assertEquals(1, store.domainBuckets().size());
         assertEquals("new.example", store.domainBuckets().get(0).getHost());
     }
@@ -82,43 +95,48 @@ public final class CaptureSessionStoreTest {
     @Test
     public void clearRemovesSessionAndDomainState() {
         CaptureSessionStore store = new CaptureSessionStore(10, 1024 * 1024);
-        store.addFromRealtime(event("1", "https://example.com", 200));
-        store.markRead("1");
+        CaptureUiEvent first = event("1", "https://example.com", 200);
+        store.addFromRealtime(first);
+        store.markRead(first.getSessionId());
 
         store.clear();
 
         assertTrue(store.sequenceOldestFirst().isEmpty());
         assertTrue(store.domainBuckets().isEmpty());
-        assertFalse(store.isRead("1"));
+        assertFalse(store.isRead(first.getSessionId()));
         assertEquals(CaptureSessionStore.State.CLEARED, store.getState());
     }
 
     @Test
     public void readStateIsSessionLocal() {
         CaptureSessionStore store = new CaptureSessionStore(10, 1024 * 1024);
-        store.addFromRealtime(event("1", "https://example.com", 200));
+        CaptureUiEvent first = event("1", "https://example.com", 200);
+        CaptureUiEvent second = event("2", "https://example.com", 200);
+        store.addFromRealtime(first);
 
-        store.markRead("1");
+        store.markRead(first.getSessionId());
 
-        assertTrue(store.isRead("1"));
-        assertFalse(store.isRead("2"));
+        assertTrue(store.isRead(first.getSessionId()));
+        assertFalse(store.isRead(second.getSessionId()));
     }
 
     @Test
     public void clearHostBucketRemovesOnlyMatchingEventsAndReadState() {
         CaptureSessionStore store = new CaptureSessionStore(10, 1024 * 1024);
-        store.addFromRealtime(event("old", "https://old.example/path", 200));
-        store.addFromRealtime(event("new", "https://new.example/path", 200));
-        store.markRead("old");
-        store.markRead("new");
+        CaptureUiEvent old = event("old", "https://old.example/path", 200);
+        CaptureUiEvent current = event("new", "https://new.example/path", 200);
+        store.addFromRealtime(old);
+        store.addFromRealtime(current);
+        store.markRead(old.getSessionId());
+        store.markRead(current.getSessionId());
 
         int removed = store.clearHostBucket("old.example");
 
         assertEquals(1, removed);
         assertEquals(1, store.sequenceOldestFirst().size());
         assertEquals("new", store.sequenceOldestFirst().get(0).getId());
-        assertFalse(store.isRead("old"));
-        assertTrue(store.isRead("new"));
+        assertFalse(store.isRead(old.getSessionId()));
+        assertTrue(store.isRead(current.getSessionId()));
         assertEquals(1, store.domainBuckets().size());
         assertEquals("new.example", store.domainBuckets().get(0).getHost());
     }

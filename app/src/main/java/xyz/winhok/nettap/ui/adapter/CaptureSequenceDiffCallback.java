@@ -28,8 +28,8 @@ final class CaptureSequenceDiffCallback extends DiffUtil.Callback {
 
     @Override
     public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
-        return oldEvents.get(oldItemPosition).getId()
-                .equals(newEvents.get(newItemPosition).getId());
+        return oldEvents.get(oldItemPosition).getSessionId()
+                == newEvents.get(newItemPosition).getSessionId();
     }
 
     @Override

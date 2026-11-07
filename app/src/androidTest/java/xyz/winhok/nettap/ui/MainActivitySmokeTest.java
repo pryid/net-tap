@@ -97,7 +97,8 @@ public final class MainActivitySmokeTest {
         waitForDisplayedText(UiTabs.detailTitle(1), 2000L);
         waitForDisplayedText(UiTabs.detailTitle(2), 2000L);
         waitForDisplayedText(UiTabs.detailTitle(3), 2000L);
-        assertEquals("request-detail", DetailHostFragment.selectedEventId());
+        assertEquals(Long.valueOf(NetTapUiState.store().sequenceOldestFirst().get(0).getSessionId()),
+                DetailHostFragment.selectedEventId());
     }
 
     private static void sendNdjson(String json) throws Exception {

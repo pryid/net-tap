@@ -15,7 +15,7 @@ import static org.junit.Assert.assertTrue;
 
 public final class CaptureDiffCallbackTest {
     @Test
-    public void sequenceDiffUsesEventIdForIdentityAndContentForUpdates() {
+    public void sequenceDiffDistinguishesRepeatedProducerIds() {
         CaptureUiEvent oldEvent = event("same", 200);
         CaptureUiEvent updatedEvent = event("same", 201);
         CaptureUiEvent newEvent = event("other", 200);
@@ -27,8 +27,11 @@ public final class CaptureDiffCallbackTest {
 
         assertEquals(1, diff.getOldListSize());
         assertEquals(2, diff.getNewListSize());
-        assertTrue(diff.areItemsTheSame(0, 0));
+        assertFalse(diff.areItemsTheSame(0, 0));
         assertFalse(diff.areContentsTheSame(0, 0));
+        CaptureSequenceDiffCallback unchanged = new CaptureSequenceDiffCallback(
+                Collections.singletonList(oldEvent), Collections.singletonList(oldEvent));
+        assertTrue(unchanged.areItemsTheSame(0, 0));
     }
 
     @Test
@@ -53,25 +56,17 @@ public final class CaptureDiffCallbackTest {
     }
 
     @Test
-    public void sequenceAdapterUsesStableIdsFromEventIds() {
-        long sameFirst = CaptureSequenceAdapter.stableIdFor("same");
-        long sameSecond = CaptureSequenceAdapter.stableIdFor("same");
-        long other = CaptureSequenceAdapter.stableIdFor("other");
-
-        assertEquals(sameFirst, sameSecond);
-        assertFalse(sameFirst == other);
-        assertFalse(sameFirst == androidx.recyclerview.widget.RecyclerView.NO_ID);
+    public void sessionIdsAreDistinctForIdenticalProducerIds() {
+        CaptureUiEvent first = event("same", 200);
+        CaptureUiEvent second = event("same", 200);
+        assertFalse(first.getSessionId() == second.getSessionId());
+        assertFalse(first.getSessionId() == androidx.recyclerview.widget.RecyclerView.NO_ID);
     }
 
     @Test
-    public void domainsAdapterUsesStableIdsFromHosts() {
-        long sameFirst = CaptureDomainsAdapter.stableIdFor("api.example.com");
-        long sameSecond = CaptureDomainsAdapter.stableIdFor("api.example.com");
-        long other = CaptureDomainsAdapter.stableIdFor("static.example.com");
-
-        assertEquals(sameFirst, sameSecond);
-        assertFalse(sameFirst == other);
-        assertFalse(sameFirst == androidx.recyclerview.widget.RecyclerView.NO_ID);
+    public void domainsAdapterDoesNotUseCollisionProneStableIds() {
+        CaptureDomainsAdapter adapter = new CaptureDomainsAdapter(null);
+        assertFalse(adapter.hasStableIds());
     }
 
     @Test

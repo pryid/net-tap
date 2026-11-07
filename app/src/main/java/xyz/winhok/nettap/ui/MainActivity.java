@@ -105,7 +105,7 @@ public final class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void showDetail(String eventId) {
+    public void showDetail(long eventId) {
         DetailHostFragment.setSelectedEventId(eventId);
         navigationController.show("detail", new CaptureDetailFragment(), true);
     }

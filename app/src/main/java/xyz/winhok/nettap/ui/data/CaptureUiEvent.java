@@ -5,12 +5,15 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class CaptureUiEvent {
     public static final String INVALID_HOST = "__invalid_url__";
     private static final int SUPPORTED_SCHEMA_VERSION = 2;
+    private static final AtomicLong NEXT_SESSION_ID = new AtomicLong();
 
     private final String id;
+    private final long sessionId = NEXT_SESSION_ID.incrementAndGet();
     private final String timestamp;
     private final String packageName;
     private final String hook;
@@ -92,6 +95,17 @@ public final class CaptureUiEvent {
                 stringValue(root.get("error")),
                 json
         );
+    }
+
+    CaptureUiEvent copyForNewSessionEntry() {
+        return new CaptureUiEvent(id, timestamp, packageName, hook, method, url,
+                requestHeaders, requestBody, responseCode, responseMessage, responseHeaders,
+                responseBody, durationMs, error, rawJson);
+    }
+
+    /** Unique within this UI process, independent of the producer's event ID. */
+    public long getSessionId() {
+        return sessionId;
     }
 
     static String stringValue(Object value) {

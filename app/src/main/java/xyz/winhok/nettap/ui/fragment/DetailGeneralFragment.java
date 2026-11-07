@@ -48,12 +48,12 @@ public final class DetailGeneralFragment extends Fragment {
     }
 
     static CaptureUiEvent findEvent() {
-        String id = DetailHostFragment.selectedEventId();
+        Long id = DetailHostFragment.selectedEventId();
         if (id == null) {
             return null;
         }
         for (CaptureUiEvent event : NetTapUiState.store().sequenceOldestFirst()) {
-            if (id.equals(event.getId())) {
+            if (id.longValue() == event.getSessionId()) {
                 return event;
             }
         }

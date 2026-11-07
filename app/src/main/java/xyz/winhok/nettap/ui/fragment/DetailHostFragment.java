@@ -3,16 +3,16 @@ package xyz.winhok.nettap.ui.fragment;
 import androidx.fragment.app.Fragment;
 
 public final class DetailHostFragment {
-    private static String selectedEventId;
+    private static Long selectedEventId;
 
     private DetailHostFragment() {
     }
 
-    public static void setSelectedEventId(String eventId) {
+    public static void setSelectedEventId(Long eventId) {
         selectedEventId = eventId;
     }
 
-    public static String selectedEventId() {
+    public static Long selectedEventId() {
         return selectedEventId;
     }
 

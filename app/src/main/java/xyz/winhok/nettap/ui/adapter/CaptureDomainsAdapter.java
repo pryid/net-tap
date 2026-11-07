@@ -20,7 +20,6 @@ public final class CaptureDomainsAdapter extends RecyclerView.Adapter<CaptureDom
 
     public CaptureDomainsAdapter(Callbacks callbacks) {
         this.callbacks = callbacks;
-        setHasStableIds(true);
     }
 
     public void submit(List<DomainBucket> next) {
@@ -61,14 +60,6 @@ public final class CaptureDomainsAdapter extends RecyclerView.Adapter<CaptureDom
         return buckets.size();
     }
 
-    @Override
-    public long getItemId(int position) {
-        if (position < 0 || position >= buckets.size()) {
-            return RecyclerView.NO_ID;
-        }
-        return stableIdFor(buckets.get(position).getHost());
-    }
-
     static String format(DomainBucket bucket) {
         StringBuilder text = new StringBuilder();
         text.append(bucket.getLabel()).append("  ").append(bucket.getCount());
@@ -95,10 +86,6 @@ public final class CaptureDomainsAdapter extends RecyclerView.Adapter<CaptureDom
             text.append("  ");
         }
         text.append(label).append(" x").append(count);
-    }
-
-    static long stableIdFor(String host) {
-        return CaptureSequenceAdapter.stableIdFor(host);
     }
 
     static final class Holder extends RecyclerView.ViewHolder {

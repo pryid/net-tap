@@ -17,7 +17,7 @@ public final class CaptureSessionStore {
     private final int maxRecords;
     private final long maxMemoryBytes;
     private final ArrayList<CaptureUiEvent> events = new ArrayList<>();
-    private final Set<String> readIds = new HashSet<>();
+    private final Set<Long> readIds = new HashSet<>();
     private State state = State.RUNNING;
     private long approximateBytes;
 
@@ -29,6 +29,9 @@ public final class CaptureSessionStore {
     public synchronized boolean addFromRealtime(CaptureUiEvent event) {
         if (event == null || state == State.FROZEN) {
             return false;
+        }
+        if (events.contains(event)) {
+            event = event.copyForNewSessionEntry();
         }
         events.add(event);
         approximateBytes += event.getApproximateBytes();
@@ -52,14 +55,12 @@ public final class CaptureSessionStore {
         state = State.CLEARED;
     }
 
-    public synchronized void markRead(String eventId) {
-        if (eventId != null) {
-            readIds.add(eventId);
-        }
+    public synchronized void markRead(long sessionId) {
+        readIds.add(sessionId);
     }
 
-    public synchronized boolean isRead(String eventId) {
-        return eventId != null && readIds.contains(eventId);
+    public synchronized boolean isRead(long sessionId) {
+        return readIds.contains(sessionId);
     }
 
     public synchronized State getState() {
@@ -125,7 +126,7 @@ public final class CaptureSessionStore {
             CaptureUiEvent event = events.get(index);
             if (host.equals(event.getHost())) {
                 events.remove(index);
-                readIds.remove(event.getId());
+                readIds.remove(event.getSessionId());
                 approximateBytes = Math.max(0L, approximateBytes - event.getApproximateBytes());
                 removedCount++;
             }
@@ -140,7 +141,7 @@ public final class CaptureSessionStore {
                 return;
             }
             CaptureUiEvent removed = events.remove(0);
-            readIds.remove(removed.getId());
+            readIds.remove(removed.getSessionId());
             approximateBytes = Math.max(0L, approximateBytes - removed.getApproximateBytes());
         }
     }

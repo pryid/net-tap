@@ -92,15 +92,15 @@ public final class CaptureSequenceFragment extends Fragment implements CapturePa
         adapter = new CaptureSequenceAdapter(new CaptureSequenceAdapter.Callbacks() {
             @Override
             public boolean isRead(CaptureUiEvent event) {
-                return NetTapUiState.store().isRead(event.getId());
+                return NetTapUiState.store().isRead(event.getSessionId());
             }
 
             @Override
             public void onOpen(CaptureUiEvent event) {
                 CaptureListFragment parent = (CaptureListFragment) getParentFragment();
                 NetTapUiState.setDetailQuery(parent == null ? "" : parent.currentQuery());
-                NetTapUiState.store().markRead(event.getId());
-                ((MainActivity) requireActivity()).showDetail(event.getId());
+                NetTapUiState.store().markRead(event.getSessionId());
+                ((MainActivity) requireActivity()).showDetail(event.getSessionId());
             }
 
             @Override
