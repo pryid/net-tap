@@ -412,6 +412,33 @@ public final class MainActivityRobolectricTest {
     }
 
     @Test
+    public void domainListFollowsSearchAndSessionFilters() {
+        NetTapUiState.store().addFromRealtime(event("request-1", "https://api.example.com/users", 200));
+        NetTapUiState.store().addFromRealtime(event("request-2", "https://static.example.com/logo", 200));
+        MainActivity activity = launch();
+        TabLayout tabs = findView(activity.getWindow().getDecorView(), TabLayout.class);
+        tabs.getTabAt(1).select();
+        activity.getSupportFragmentManager().executePendingTransactions();
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+
+        RecyclerView domains = findRecyclerViewWithAdapter(activity, "CaptureDomainsAdapter");
+        assertNotNull(domains);
+        assertEquals(2, domains.getAdapter().getItemCount());
+        findSearchView(activity).setQuery("static", false);
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+        assertEquals(1, domains.getAdapter().getItemCount());
+        NetTapUiState.setPackageFilter("another.package");
+        findSearchView(activity).setQuery("", false);
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+        assertEquals(0, domains.getAdapter().getItemCount());
+        NetTapUiState.setPackageFilter(null);
+        findSearchView(activity).setQuery("static", false);
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+        clickAdapterRow(domains, 0);
+        assertEquals("static.example.com", NetTapUiState.getHostFilter());
+    }
+
+    @Test
     public void domainRowClickAppliesHostFilterAndReturnsToSequence() {
         NetTapUiState.store().addFromRealtime(event(
                 "request-1",

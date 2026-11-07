@@ -23,6 +23,7 @@ import xyz.winhok.nettap.ui.MainActivity;
 import xyz.winhok.nettap.ui.NetTapUiState;
 import xyz.winhok.nettap.ui.adapter.CaptureDomainsAdapter;
 import xyz.winhok.nettap.ui.data.CaptureUiEvent;
+import xyz.winhok.nettap.ui.data.CaptureSessionStore;
 import xyz.winhok.nettap.ui.data.DomainBucket;
 import xyz.winhok.nettap.ui.widget.SpacedRecyclerView;
 
@@ -98,7 +99,10 @@ public final class CaptureDomainsFragment extends Fragment implements CapturePag
         if (adapter == null || summary == null) {
             return;
         }
-        List<DomainBucket> buckets = NetTapUiState.store().domainBuckets();
+        CaptureListFragment parent = (CaptureListFragment) getParentFragment();
+        String query = parent == null ? "" : parent.currentQuery();
+        List<DomainBucket> buckets = CaptureSessionStore.domainBucketsFor(
+                NetTapUiState.filteredEvents(query, false));
         summary.setText(getString(xyz.winhok.nettap.R.string.domains_summary, buckets.size()));
         adapter.submit(buckets);
     }

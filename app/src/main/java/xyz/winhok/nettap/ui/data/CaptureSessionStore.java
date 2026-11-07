@@ -85,6 +85,10 @@ public final class CaptureSessionStore {
     }
 
     public synchronized List<DomainBucket> domainBuckets() {
+        return domainBucketsFor(events);
+    }
+
+    public static List<DomainBucket> domainBucketsFor(List<CaptureUiEvent> events) {
         LinkedHashMap<String, MutableBucket> buckets = new LinkedHashMap<>();
         for (CaptureUiEvent event : events) {
             MutableBucket bucket = buckets.get(event.getHost());
